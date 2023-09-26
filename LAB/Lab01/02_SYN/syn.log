@@ -1,0 +1,673 @@
+#======================================================
+#
+# Synopsys Synthesis Scripts (Design Vision dctcl mode)
+#
+#======================================================
+#======================================================
+# (A) Global Parameters
+#======================================================
+set DESIGN "SMC"
+SMC
+set CYCLE 20
+20
+set INPUT_DLY [expr 0.5*$CYCLE]
+10.0
+set OUTPUT_DLY [expr 0.5*$CYCLE]
+10.0
+#======================================================
+# (B) Read RTL Code
+#======================================================
+# (B-1) analyze + elaborate
+set hdlin_auto_save_templates TRUE
+TRUE
+analyze -f sverilog $DESIGN\.v 
+Running PRESTO HDLC
+Compiling source file ../01_RTL/SMC.v
+Presto compilation completed successfully.
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/fast.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_slow.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_fast.db'
+Loading db file '/usr/cad/synopsys/synthesis/cur/libraries/syn/dw_foundation.sldb'
+Loading db file '/usr/cad/synopsys/synthesis/cur/libraries/syn/standard.sldb'
+1
+elaborate $DESIGN  
+Loading db file '/usr/cad/synopsys/synthesis/2022.03/libraries/syn/gtech.db'
+Loading db file '/usr/cad/synopsys/synthesis/2022.03/libraries/syn/standard.sldb'
+  Loading link library 'slow'
+  Loading link library 'fast'
+  Loading link library 'umc18io3v5v_slow'
+  Loading link library 'umc18io3v5v_fast'
+  Loading link library 'gtech'
+Running PRESTO HDLC
+Warning:  ../01_RTL/SMC.v:127: signed to unsigned assignment occurs. (VER-318)
+
+Statistics for case statements in always block at line 124 in file
+        '../01_RTL/SMC.v'
+===============================================
+|           Line           |  full/ parallel  |
+===============================================
+|           138            |     auto/no      |
+===============================================
+Presto compilation completed successfully. (SMC)
+Elaborated 1 design.
+Current design is now 'SMC'.
+1
+# (B-2) read_sverilog
+#read_sverilog $DESIGN\.v
+# (B-3) set current design
+current_design $DESIGN
+Current design is 'SMC'.
+{SMC}
+link
+
+  Linking design 'SMC'
+  Using the following designs and libraries:
+  --------------------------------------------------------------------------
+  SMC                         /RAID2/COURSE/iclab/iclab059/Lab01/02_SYN/SMC.db
+  slow (library)              /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db
+  fast (library)              /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/fast.db
+  umc18io3v5v_slow (library)  /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_slow.db
+  umc18io3v5v_fast (library)  /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_fast.db
+  dw_foundation.sldb (library) /usr/cad/synopsys/synthesis/cur/libraries/syn/dw_foundation.sldb
+
+1
+#======================================================
+#  (C) Global Setting
+#======================================================
+set_wire_load_mode top
+1
+set_wire_load_model -name umc18_wl10 -library slow
+1
+set_operating_conditions -min fast  -max slow
+Using operating conditions 'slow' found in library 'slow'.
+Using operating conditions 'fast' found in library 'fast'.
+1
+#======================================================
+#  (D) Set Design Constraints
+#======================================================
+set_max_delay $CYCLE -from [all_inputs] -to [all_outputs]
+1
+set_load 0.05 [all_outputs]
+1
+# # (D-1) Setting Clock Constraints
+# create_clock -name clk -period $CYCLE [get_ports clk] 
+# set_dont_touch_network             [get_clocks clk]
+# set_fix_hold                       [get_clocks clk]
+# set_clock_uncertainty       0.1    [get_clocks clk]
+# set_clock_latency   -source 0      [get_clocks clk]
+# set_clock_latency           1      [get_clocks clk] 
+# set_input_transition        0.5    [all_inputs] 
+# set_clock_transition        0.1    [all_clocks] 
+# # (D-2) Setting in/out Constraints
+# set_input_delay   -max  $INPUT_DLY  -clock clk   [all_inputs] ;  # set_up time check 
+# set_input_delay   -min  0           -clock clk   [all_inputs] ;  # hold   time check 
+# set_output_delay  -max  $OUTPUT_DLY -clock clk   [all_outputs] ; # set_up time check 
+# set_output_delay  -min  0           -clock clk   [all_outputs] ; # hold   time check 
+# set_input_delay 0 -clock clk clk
+# set_input_delay 0 -clock clk rst_n
+# #set_max_delay $CYCLE -from [all_inputs] -to [all_outputs]
+# # (D-3) Setting Design Environment
+# set_driving_cell -library umc18io3v5v_slow -lib_cell P2C    -pin {Y}  [get_ports clk]
+# set_driving_cell -library umc18io3v5v_slow -lib_cell P2C    -pin {Y}  [remove_from_collection [all_inputs] [get_ports clk]]
+# set_load  [load_of "umc18io3v5v_slow/P8C/A"]       [all_outputs] ; # ~= 0.038
+# #set_load 0.05 [all_outputs]
+# # (D-4) Setting DRC Constraint
+# #set_max_delay           0     ; # Optimize delay max effort                 
+# #set_max_area            0      ; # Optimize area max effort           
+# set_max_transition      3       [all_inputs]   ; # U18 LUT Max Transition Value  
+# set_max_capacitance     0.15    [all_inputs]   ; # U18 LUT Max Capacitance Value
+# set_max_fanout          10      [all_inputs]
+# set_dont_use slow/JKFF*
+# #set_dont_touch [get_cells core_reg_macro]
+# #set hdlin_ff_always_sync_set_reset true
+# # (D-5) Report Clock skew
+# report_clock -skew clk
+# check_timing
+#======================================================
+#  (E) Optimization
+#======================================================
+check_design > Report/$DESIGN\.check
+set_fix_multiple_port_nets -all -buffer_constants [get_designs *]
+1
+# set_fix_hold [all_clocks]
+compile_ultra
+Information: Performing power optimization. (PWR-850)
+Alib files are up-to-date.
+Information: Running optimization using a maximum of 4 cores. (OPT-1500)
+Information: Evaluating DesignWare library utilization. (UISN-27)
+
+============================================================================
+| DesignWare Building Block Library  |         Version         | Available |
+============================================================================
+| Basic DW Building Blocks           | S-2021.06-DWBB_202106.0 |     *     |
+| Licensed DW Building Blocks        | S-2021.06-DWBB_202106.0 |     *     |
+============================================================================
+
+====================================================================================================
+| Flow Information                                                                                 |
+----------------------------------------------------------------------------------------------------
+| Flow         | Design Compiler NXT WLM                                                           |
+| Comand line  | compile_ultra                                                                     |
+====================================================================================================
+| Design Information                                      | Value                                  |
+====================================================================================================
+| Number of Scenarios                                     | 0                                      |
+| Leaf Cell Count                                         | 300                                    |
+| Number of User Hierarchies                              | 0                                      |
+| Sequential Cell Count                                   | 0                                      |
+| Macro Count                                             | 0                                      |
+| Number of Power Domains                                 | 0                                      |
+| Number of Path Groups                                   | 1                                      |
+| Number of VT class                                      | 0                                      |
+| Number of Clocks                                        | 0                                      |
+| Number of Dont Touch cells                              | 122                                    |
+| Number of Dont Touch nets                               | 0                                      |
+| Number of size only cells                               | 0                                      |
+| Design with UPF Data                                    | false                                  |
+----------------------------------------------------------------------------------------------------
+| Variables                                               | Value                                  |
+----------------------------------------------------------------------------------------------------
+| set_fix_multiple_port_nets                              | -all -buffer_constants                 |
+====================================================================================================
+Information: Sequential output inversion is enabled.  SVF file must be used for formal verification. (OPT-1208)
+
+Information: There are 31 potential problems in your design. Please run 'check_design' for more information. (LINT-99)
+
+  Simplifying Design 'SMC'
+
+  Loading target library 'fast'
+  Loading target library 'umc18io3v5v_slow'
+  Loading target library 'umc18io3v5v_fast'
+Warning: IO pad 'P8C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P8B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P8A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P4C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P4A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P2C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P2A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16A' is unusable: unknown logic function.  (OPT-1022)
+Loaded alib file './alib-52/slow.db.alib'
+Loaded alib file './alib-52/fast.db.alib'
+Loaded alib file './alib-52/umc18io3v5v_slow.db.alib' (placeholder)
+Loaded alib file './alib-52/umc18io3v5v_fast.db.alib' (placeholder)
+Warning: Operating condition slow set on design SMC has different process,
+voltage and temperatures parameters than the parameters at which target library 
+fast is characterized. Delays may be inaccurate as a result. (OPT-998)
+  Building model 'DW01_NAND2'
+Information: Ungrouping 0 of 1 hierarchies before Pass 1 (OPT-775)
+Information: State dependent leakage is now switched from on to off.
+
+  Beginning Pass 1 Mapping
+  ------------------------
+  Processing 'SMC'
+Information: Added key list 'DesignWare' to design 'SMC'. (DDB-72)
+ Implement Synthetic for 'SMC'.
+  Processing 'SMC_DW_div_uns_J1_0'
+  Processing 'SMC_DW_div_uns_J1_1'
+  Processing 'SMC_DW_div_uns_J1_2'
+  Processing 'SMC_DW_div_uns_J1_3'
+
+  Updating timing information
+Information: Updating design information... (UID-85)
+Information: The library cell 'HOLDX1' in the library 'slow' is not characterized for internal power. (PWR-536)
+Information: The target library(s) contains cell(s), other than black boxes, that are not characterized for internal power. (PWR-24)
+
+  Beginning Mapping Optimizations  (Ultra High effort)
+  -------------------------------
+  Mapping Optimization (Phase 1)
+  Mapping Optimization (Phase 2)
+  Mapping Optimization (Phase 3)
+  Mapping Optimization (Phase 4)
+  Mapping Optimization (Phase 5)
+  Mapping Optimization (Phase 6)
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:17   74498.1      0.00       0.0       0.0                           11068649.0000
+    0:00:17   74015.7      0.00       0.0       0.0                           11002229.0000
+
+  Beginning Constant Register Removal
+  -----------------------------------
+    0:00:18   74015.7      0.00       0.0       0.0                           11002229.0000
+    0:00:18   73952.5      0.00       0.0       0.0                           10994909.0000
+
+  Beginning Global Optimizations
+  ------------------------------
+  Numerical Synthesis (Phase 1)
+  Numerical Synthesis (Phase 2)
+  Global Optimization (Phase 1)
+  Global Optimization (Phase 2)
+  Global Optimization (Phase 3)
+  Global Optimization (Phase 4)
+  Global Optimization (Phase 5)
+  Global Optimization (Phase 6)
+  Global Optimization (Phase 7)
+  Global Optimization (Phase 8)
+  Global Optimization (Phase 9)
+  Global Optimization (Phase 10)
+  Global Optimization (Phase 11)
+  Global Optimization (Phase 12)
+  Global Optimization (Phase 13)
+  Global Optimization (Phase 14)
+  Global Optimization (Phase 15)
+  Global Optimization (Phase 16)
+  Global Optimization (Phase 17)
+  Global Optimization (Phase 18)
+  Global Optimization (Phase 19)
+  Global Optimization (Phase 20)
+  Global Optimization (Phase 21)
+  Global Optimization (Phase 22)
+  Global Optimization (Phase 23)
+  Global Optimization (Phase 24)
+  Global Optimization (Phase 25)
+  Global Optimization (Phase 26)
+  Global Optimization (Phase 27)
+  Global Optimization (Phase 28)
+  Global Optimization (Phase 29)
+  Global Optimization (Phase 30)
+  Global Optimization (Phase 31)
+  Mapping 'SMC_DP_OP_206J1_128_2088_3'
+  Mapping 'SMC_DP_OP_207J1_129_2088_1'
+
+  Beginning Isolate Ports
+  -----------------------
+
+  Beginning Delay Optimization
+  ----------------------------
+    0:00:19   43782.1      4.86      20.5       0.0                           5398090.5000
+    0:00:19   46745.9      0.00       0.0       0.0                           5913432.5000
+    0:00:19   46745.9      0.00       0.0       0.0                           5913432.5000
+    0:00:20   46745.9      0.00       0.0       0.0                           5913432.5000
+    0:00:20   46739.2      0.60       0.9       0.0                           5961570.5000
+    0:00:20   46596.2      0.69       1.1       0.0                           5941446.0000
+
+  Beginning WLM Backend Optimization
+  --------------------------------------
+    0:00:20   45275.6      0.18       0.2       0.0                           5746180.5000
+    0:00:20   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:20   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+
+
+  Beginning Leakage Power Optimization  (max_leakage_power 0)
+  ------------------------------------
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:21   45288.9      0.00       0.0       0.0                           5746489.5000
+  Global Optimization (Phase 32)
+  Global Optimization (Phase 33)
+  Global Optimization (Phase 34)
+  Global Optimization (Phase 35)
+  Global Optimization (Phase 36)
+  Global Optimization (Phase 37)
+  Global Optimization (Phase 38)
+  Global Optimization (Phase 39)
+  Global Optimization (Phase 40)
+  Global Optimization (Phase 41)
+  Global Optimization (Phase 42)
+  Global Optimization (Phase 43)
+  Global Optimization (Phase 44)
+  Global Optimization (Phase 45)
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:00:21   42275.2      0.00       0.0       0.0                           5006865.5000
+    0:00:22   38912.2      0.00       0.0       0.0                           4498583.5000
+    0:00:22   38912.2      0.00       0.0       0.0                           4498583.5000
+    0:00:22   38912.2      0.00       0.0       0.0                           4498583.5000
+    0:00:22   38912.2      0.00       0.0       0.0                           4497950.0000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:22   38849.0      0.00       0.0       0.0                           4459795.5000
+    0:00:23   37751.3      0.00       0.0       0.0                           4271994.5000
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/fast.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_slow.db'
+Loading db file '/RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/umc18io3v5v_fast.db'
+
+
+Note: Symbol # after min delay cost means estimated hold TNS across all active scenarios 
+
+
+  Optimization Complete
+  ---------------------
+  Loading target library 'fast'
+  Loading target library 'umc18io3v5v_slow'
+  Loading target library 'umc18io3v5v_fast'
+Warning: IO pad 'P8C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P8B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P8A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P4C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P4A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P2C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P2A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P24A' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16C' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16B' is unusable: unknown logic function.  (OPT-1022)
+Warning: IO pad 'P16A' is unusable: unknown logic function.  (OPT-1022)
+Information: State dependent leakage is now switched from off to on.
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Warning: There is no defined clock in the design. (PWR-80)
+1
+#uniquify
+#compile
+#======================================================
+#  (F) Output Reports 
+#======================================================
+report_design  >  Report/$DESIGN\.design
+report_resource >  Report/$DESIGN\.resource
+report_timing -max_paths 3 >  Report/$DESIGN\.timing
+report_area >  Report/$DESIGN\.area
+report_power > Report/$DESIGN\.power
+report_clock > Report/$DESIGN\.clock
+report_port >  Report/$DESIGN\.port
+report_power >  Report/$DESIGN\.power
+#report_reference > Report/$DESIGN\.reference
+#======================================================
+#  (G) Change Naming Rule
+#======================================================
+set bus_inference_style "%s\[%d\]"
+%s[%d]
+set bus_naming_style "%s\[%d\]"
+%s[%d]
+set hdlout_internal_busses true
+true
+change_names -hierarchy -rule verilog
+1
+define_name_rules name_rule -allowed "a-z A-Z 0-9 _" -max_length 255 -type cell
+1
+define_name_rules name_rule -allowed "a-z A-Z 0-9 _[]" -max_length 255 -type net
+1
+define_name_rules name_rule -map {{"\\*cell\\*" "cell"}}
+1
+define_name_rules name_rule -case_insensitive
+1
+change_names -hierarchy -rules name_rule
+1
+#======================================================
+#  (H) Output Results
+#======================================================
+set verilogout_higher_designs_first true
+true
+write -format verilog -output Netlist/$DESIGN\_SYN.v -hierarchy
+Writing verilog file '/RAID2/COURSE/iclab/iclab059/Lab01/02_SYN/Netlist/SMC_SYN.v'.
+1
+write -format ddc     -hierarchy -output $DESIGN\_SYN.ddc
+Writing ddc file 'SMC_SYN.ddc'.
+1
+write_sdf -version 3.0 -context verilog -load_delay cell Netlist/$DESIGN\_SYN.sdf -significant_digits 6
+Information: Writing timing information to file '/RAID2/COURSE/iclab/iclab059/Lab01/02_SYN/Netlist/SMC_SYN.sdf'. (WT-3)
+Information: Updating design information... (UID-85)
+1
+write_sdc Netlist/$DESIGN\_SYN.sdc
+1
+#======================================================
+#  (I) Finish and Quit
+#======================================================
+report_timing
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : SMC
+Version: T-2022.03
+Date   : Mon Sep 25 14:53:36 2023
+****************************************
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+  Startpoint: V_DS_3[1] (input port)
+  Endpoint: out_n[0] (output port)
+  Path Group: default
+  Path Type: max
+
+  Des/Clust/Port     Wire Load Model       Library
+  ------------------------------------------------
+  SMC                umc18_wl10            slow
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  input external delay                     0.00       0.00 f
+  V_DS_3[1] (in)                           0.00       0.00 f
+  U1435/Y (INVX4)                          0.15       0.15 r
+  U780/Y (NAND2X2)                         0.16       0.30 f
+  U1044/Y (INVX2)                          0.12       0.42 r
+  U784/Y (NOR3X1)                          0.14       0.56 f
+  U1981/Y (AOI211X2)                       0.31       0.87 r
+  U1983/Y (XOR2X1)                         0.41       1.28 r
+  U1317/Y (OAI2BB1X2)                      0.25       1.53 r
+  U856/Y (INVX4)                           0.11       1.64 f
+  U1634/Y (NOR2X1)                         0.22       1.86 r
+  U1020/S (ADDFHX1)                        0.57       2.43 r
+  U1284/S (ADDHX2)                         0.18       2.61 r
+  U1420/Y (INVX2)                          0.16       2.77 f
+  U2006/Y (OAI22X1)                        0.34       3.11 r
+  U2023/S (ADDFX2)                         0.78       3.89 f
+  U2024/Y (NOR2X2)                         0.34       4.23 r
+  U2037/Y (INVX2)                          0.10       4.32 f
+  U2038/Y (NAND2X1)                        0.23       4.55 r
+  U1198/Y (XOR2X2)                         0.45       5.00 f
+  U2060/Y (INVX8)                          0.23       5.23 r
+  U1190/Y (NOR2X1)                         0.15       5.37 f
+  U1175/Y (AOI2BB2X2)                      0.30       5.67 f
+  U2083/Y (NAND2X1)                        0.21       5.89 r
+  U2084/Y (OAI21X2)                        0.22       6.11 f
+  U2107/Y (INVX2)                          0.20       6.30 r
+  U2109/Y (NAND2X1)                        0.13       6.44 f
+  U1387/Y (AOI2BB2X1)                      0.39       6.82 f
+  U969/Y (NAND2X1)                         0.26       7.08 r
+  U1162/Y (XOR2X2)                         0.40       7.48 r
+  U1156/Y (NAND2X2)                        0.10       7.58 f
+  U2112/Y (XOR2X1)                         0.46       8.05 r
+  U2114/Y (INVX2)                          0.09       8.14 f
+  U2115/Y (NAND2X1)                        0.31       8.45 r
+  U2118/Y (MXI2X2)                         0.30       8.74 f
+  U2240/Y (AND2X4)                         0.30       9.05 f
+  U2241/Y (NOR2X1)                         0.25       9.30 r
+  U2245/Y (AND2X4)                         0.30       9.59 r
+  U2253/Y (NAND2X4)                        0.23       9.82 f
+  U2266/Y (AOI2BB1X2)                      0.37      10.20 f
+  U2271/Y (NOR2X4)                         0.30      10.50 r
+  U2272/Y (OR2X4)                          0.31      10.81 r
+  U2273/Y (OAI21X4)                        0.22      11.04 f
+  U2368/Y (AOI21X1)                        0.34      11.37 r
+  U935/Y (NAND2X2)                         0.16      11.53 f
+  U2371/Y (NAND2X4)                        0.21      11.74 r
+  U2373/Y (NAND2X4)                        0.12      11.86 f
+  U930/Y (INVX2)                           0.14      12.00 r
+  U2377/Y (MXI2X4)                         0.23      12.23 f
+  U2378/Y (OAI21X4)                        0.25      12.48 r
+  U929/Y (INVX4)                           0.11      12.60 f
+  U1093/Y (NOR2X2)                         0.16      12.76 r
+  U1092/S (ADDFX2)                         0.46      13.22 r
+  U815/S (CMPR42X1)                        1.13      14.35 f
+  U2393/Y (NOR2X4)                         0.31      14.67 r
+  U2394/Y (NOR2X4)                         0.13      14.79 f
+  U2418/Y (AOI21X4)                        0.43      15.22 r
+  U2447/Y (OAI21X2)                        0.18      15.40 f
+  U1080/Y (XNOR2X2)                        0.43      15.83 r
+  U2448/Y (NAND2X4)                        0.10      15.93 f
+  U2449/Y (NAND2X4)                        0.24      16.17 r
+  U922/Y (INVX2)                           0.09      16.26 f
+  U2456/Y (NAND2X1)                        0.20      16.46 r
+  U1071/Y (NAND2X2)                        0.21      16.67 f
+  U2458/Y (NAND2X1)                        0.23      16.90 r
+  U2460/Y (OAI2BB1X4)                      0.23      17.12 r
+  U2463/Y (NAND2X4)                        0.11      17.24 f
+  U2469/Y (OR2X4)                          0.27      17.50 f
+  U639/Y (XOR2X1)                          0.31      17.82 f
+  U2479/Y (NAND2X2)                        0.15      17.97 r
+  U1069/Y (NAND3X2)                        0.18      18.14 f
+  U2496/Y (OR2X4)                          0.31      18.45 f
+  U2497/Y (XOR2X2)                         0.31      18.76 r
+  U632/Y (NOR2X2)                          0.08      18.85 f
+  U2498/Y (AOI21X1)                        0.29      19.13 r
+  U2499/Y (OAI31X2)                        0.22      19.35 f
+  U2504/Y (OAI2BB1X4)                      0.33      19.68 f
+  U2522/Y (OAI21X4)                        0.30      19.98 r
+  out_n[0] (out)                           0.00      19.98 r
+  data arrival time                                  19.98
+
+  max_delay                               20.00      20.00
+  output external delay                    0.00      20.00
+  data required time                                 20.00
+  -----------------------------------------------------------
+  data required time                                 20.00
+  data arrival time                                 -19.98
+  -----------------------------------------------------------
+  slack (MET)                                         0.02
+
+
+1
+report_area -designware -hierarchy
+ 
+****************************************
+Report : area
+Design : SMC
+Version: T-2022.03
+Date   : Mon Sep 25 14:53:36 2023
+****************************************
+
+Library(s) Used:
+
+    slow (File: /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db)
+
+Number of ports:                           64
+Number of nets:                          2077
+Number of cells:                         1903
+Number of combinational cells:           1902
+Number of sequential cells:                 0
+Number of macros/black boxes:               0
+Number of buf/inv:                        362
+Number of references:                     111
+
+Combinational area:              37751.313994
+Buf/Inv area:                     3945.110516
+Noncombinational area:               0.000000
+Macro/Black Box area:                0.000000
+Net Interconnect area:          198287.659821
+
+Total cell area:                 37751.313994
+Total area:                     236038.973815
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area            Local cell area
+                                  -------------------  ----------------------------- 
+Hierarchical cell                 Absolute    Percent  Combi-      Noncombi-  Black-
+                                  Total       Total    national    national   boxes   Design
+--------------------------------  ----------  -------  ----------  ---------  ------  ---------
+SMC                               37751.3140    100.0  37751.3140     0.0000  0.0000  SMC
+--------------------------------  ----------  -------  ----------  ---------  ------  ---------
+Total                                                  37751.3140     0.0000  0.0000
+
+
+Area of detected synthetic parts
+--------------------------------
+  No DW parts to report!
+
+Estimated area of ungrouped synthetic parts
+-------------------------------------------
+                                        Estimated  Perc. of
+  Module               Implem.  Count        Area cell area
+  -------------------- -------  ----- ----------- ---------
+  DP_OP_200J1_122_2340     str      1    286.0704      0.8%
+  DP_OP_201J1_123_2340     str      1    286.0704      0.8%
+  DP_OP_202J1_124_2340     str      1    286.0704      0.8%
+  DP_OP_203J1_125_2340     str      1    286.0704      0.8%
+  DP_OP_204J1_126_2340     str      1    286.0704      0.8%
+  DP_OP_205J1_127_2340     str      1    286.0704      0.8%
+  DP_OP_206J1_128_2088     str      1   4213.3928     11.2%
+  DP_OP_207J1_129_2088     str      1   4181.8422     11.1%
+  DP_OP_208J1_130_2088     str      1   2503.9426      6.6%
+  DP_OP_209J1_131_2088     str      1   2498.2064      6.6%
+  DP_OP_210J1_132_2088     str      1   2050.7671      5.4%
+  DP_OP_211J1_133_2088     str      1   2245.8047      5.9%
+  DP_OP_212J1_134_4100     str      1   2882.5478      7.6%
+  DW01_add             apparch      5    229.5216      0.6%
+  DW01_inc             apparch     16    244.8230      0.6%
+  DW_cmp               apparch     21   4953.6746     13.1%
+  DW_div_uns              cla2      2   6866.3641     18.2%
+  DW_div_uns              cla3      2   1124.0856      3.0%
+  DW_rightsh              astr      1    249.4800      0.7%
+  -------------------- -------  ----- ----------- ---------
+  DP_OP Subtotal:                  13  22292.9260     59.1%
+  Total:                           60  35960.8751     95.3%
+
+Subtotal of datapath(DP_OP) cell area:  22292.9260  59.1%  (estimated)
+Total synthetic cell area:              35960.8751  95.3%  (estimated)
+
+1
+exit
+
+Memory usage for this session 323 Mbytes.
+Memory usage for this session including child processes 842 Mbytes.
+CPU usage for this session 50 seconds ( 0.01 hours ).
+Elapsed time for this session 34 seconds ( 0.01 hours ).
+
+Thank you...
+

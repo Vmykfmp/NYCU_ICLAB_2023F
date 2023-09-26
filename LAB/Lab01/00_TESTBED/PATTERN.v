@@ -99,8 +99,8 @@ repeat(PATTERN_NUM)
 // initial
 //================================================================
 initial begin
-	input_file=$fopen("../00_TESTBED/input_1000000.txt","r");
-    output_file=$fopen("../00_TESTBED/output_1000000.txt","r");
+	input_file=$fopen("../00_TESTBED/input_1000.txt","r");
+    output_file=$fopen("../00_TESTBED/output_1000.txt","r");
     W_0 = 'bx; V_GS_0 = 'bx; V_DS_0 = 'bx;
     W_1 = 'bx; V_GS_1 = 'bx; V_DS_1 = 'bx;
     W_2 = 'bx; V_GS_2 = 'bx; V_DS_2 = 'bx;

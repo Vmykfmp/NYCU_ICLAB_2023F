@@ -51,22 +51,19 @@ reg signed[7:0] y_next [0:3];
 // mode 0
 wire signed[8:0] left_edge [0:1];
 wire signed[8:0] right_edge [0:1];
-reg signed[7:0] left_point [0:1];
-reg signed[7:0] right_point [0:1];
-reg signed[7:0] left_point_next [0:1];
-reg signed[7:0] right_point_next [0:1];
 reg signed[8:0] left_slope;
 reg signed[8:0] right_slope;
+
+reg signed[7:0] left_point;
+reg signed[7:0] right_point;
+reg signed[7:0] left_point_next;
+reg signed[7:0] right_point_next;
 reg signed[7:0] horizon_point;
 reg signed[7:0] vertical_point;
 reg signed[7:0] horizon_point_next;
 reg signed[7:0] vertical_point_next;
-reg signed[9:0] left_point_tmp;
-reg signed[9:0] right_point_tmp;
 
 reg signed[1:0] delta [0:1];
-reg signed[7:0] sub[0:1];
-reg signed[9:0] point_tmp;
 // mode 1
 wire signed[6:0] a;
 wire signed[6:0] b;
@@ -88,12 +85,10 @@ always @(posedge clk or negedge rst_n) begin
     if(~rst_n) begin
         state <= 2'd0;
         input_cnt <= 2'd0;
-        predict_state <= 2'd0;
     end
     else begin
         state <= state_next;
         input_cnt <= input_cnt_next;
-        predict_state <= predict_state_next;
     end
 end
 //==============================================//
@@ -116,21 +111,6 @@ always @(*) begin
         default: begin
             state_next = IDLE;
         end 
-    endcase
-end
-
-always @(*) begin
-    case (state)
-        IN: begin
-            predict_state_next = PREDICT_LEFT;
-        end
-        OUT: begin
-            if(predict_state == PREDICT_LEFT) predict_state_next = PREDICT_RIGHT;
-            else                              predict_state_next = IDLE;
-
-            if(horizon_point == right_point[0]) predict_state_next = PREDICT_LEFT;
-        end
-        default: predict_state_next = predict_state;
     endcase
 end
 
@@ -212,57 +192,18 @@ assign r1 = x[2] - x[3];
 assign r2 = y[2] - y[3];
 
 always @(*) begin
-    for(i = 0; i < 8; i = i + 1) begin
-        num_1[i] = 0;
-    end
-    for(i = 0; i < 2; i = i + 1) begin
-        num_2[i] = 0;
-    end
-    for(i = 0; i < 2; i = i + 1) begin
-        left_point_next[i]  = left_point[i];
-        right_point_next[i] = right_point[i];
-        delta[i] = 0;
-        sub[i] = 0;
-    end
+    for(i = 0; i < 8; i = i + 1) num_1[i] = 0;
+    for(i = 0; i < 2; i = i + 1) num_2[i] = 0;
+    if(x[0] < x[2]) delta[0] = 0; 
+    else            delta[0] = 1; 
+    if(x[1] < x[3]) delta[1] = 0;
+    else            delta[1] = 1;
     horizon_point_next  = horizon_point;
     vertical_point_next = vertical_point;
-    point_tmp = 0;
+    left_point_next  = left_point;
+    right_point_next = right_point;
     out_tmp = 0;
     out = 0;
-
-    // mode 0 points block
-    case (state)
-        IN: begin
-            case (input_cnt)
-                2'd3: begin
-                    horizon_point_next  = x[2];
-                    vertical_point_next = y[2];
-
-                    left_point_next[0]  = x[2];
-                    left_point_next[1]  = x[2];
-                    right_point_next[0] = x[3];
-                    right_point_next[1] = x[3];
-                end
-                default: begin
-                end
-            endcase
-        end
-        OUT: begin
-            if(horizon_point == right_point[0]) begin
-                horizon_point_next  = left_point[1];
-                vertical_point_next = vertical_point + 1;
-
-                left_point_next[0]  = left_point[1];
-                right_point_next[0] = right_point[1];
-            end
-            else begin
-                horizon_point_next  = horizon_point + 1;
-                vertical_point_next = vertical_point;
-            end
-        end
-        default: begin
-        end
-    endcase
 
     // first stage multiplier
     case (state)
@@ -325,50 +266,14 @@ always @(*) begin
           endcase
         end
         OUT: begin
-            case (predict_state)
-                PREDICT_LEFT: begin
-                    sub[0] = y[2];
-                    sub[1] = x[2];
-                    num_1[0] = left_edge[0];
-                    num_1[4] = left_edge[0];
-                    num_1[2] = left_edge[1];
-                    num_1[6] = left_edge[1];
-
-                    if(x[0] < x[2]) begin
-                        delta[0] = -1;
-                        delta[1] = 0;  
-                    end
-                    else begin
-                        delta[0] = 0;
-                        delta[1] = 1;                
-                    end
-                    point_tmp = left_point[0] + left_slope;
-                end
-                PREDICT_RIGHT: begin
-                    sub[0] = y[3];
-                    sub[1] = x[3];
-                    num_1[0] = right_edge[0];
-                    num_1[4] = right_edge[0];
-                    num_1[2] = right_edge[1];
-                    num_1[6] = right_edge[1];    
-
-                    if(x[1] < x[3]) begin
-                        delta[0] = -1;
-                        delta[1] = 0;  
-                    end
-                    else begin
-                        delta[0] = 0;
-                        delta[1] = 1;                
-                    end
-                    point_tmp = right_point[0] + right_slope;
-                end                    
-                default: begin
-                end
-            endcase 
-            num_1[1] = vertical_point + 1 - sub[0];
-            num_1[5] = vertical_point + 1 - sub[0];            
-            num_1[3] = point_tmp + delta[0] - sub[1];
-            num_1[7] = point_tmp + delta[1] - sub[1];
+            num_1[0] = left_edge[0];
+            num_1[1] = vertical_point + 1 - y[2];
+            num_1[2] = left_edge[1];
+            num_1[3] = left_point + left_slope + delta[0] - x[2];            
+            num_1[4] = right_edge[0];
+            num_1[5] = vertical_point + 1 - y[3];  
+            num_1[6] = right_edge[1];
+            num_1[7] = right_point + right_slope + delta[1] - x[3];
         end 
         default: begin
         end
@@ -376,29 +281,39 @@ always @(*) begin
 
     cal_1[0] = (num_1[0] * num_1[1]) - (num_1[2] * num_1[3]);
     cal_1[1] = (num_1[4] * num_1[5]) - (num_1[6] * num_1[7]);
-
-    case (predict_state)
-        PREDICT_LEFT: begin
-                
-            if(!cal_1[0][15]) begin
-                if(!cal_1[1][15]) left_point_next[1] = num_1[7] + x[2];
-                else             left_point_next[1] = num_1[3] + x[2];
-            end
-            else                 left_point_next[1] = num_1[3] + x[2];  
+    
+    // mode 0 points block
+    case (state)
+        IN: begin
+            case (input_cnt)
+                2'd3: begin
+                    left_point_next  = x[2];
+                    right_point_next = x[3];
+                    horizon_point_next  = x[2];
+                    vertical_point_next = y[2];
+                end
+                default: begin
+                end
+            endcase
         end
-        PREDICT_RIGHT : begin
-            if(!cal_1[0][15]) begin
-                if(!cal_1[1][15]) right_point_next[1] = num_1[7] + x[3];
-                else             right_point_next[1] = num_1[3] + x[3];
+        OUT: begin
+            if(horizon_point == right_point) begin
+                if(!cal_1[0][15]) left_point_next = num_1[3] + x[2];
+                else              left_point_next = num_1[3] + x[2] - 1;
+                if(!cal_1[1][15]) right_point_next = num_1[7] + x[3];
+                else              right_point_next = num_1[7] + x[3] - 1;
+                horizon_point_next  = left_point_next;
+                vertical_point_next = vertical_point + 1;
             end
-            else                 right_point_next[1] = num_1[3] + x[3];           
+            else begin
+                horizon_point_next  = horizon_point + 1;
+                vertical_point_next = vertical_point;
+            end
         end
         default: begin
         end
     endcase
-    // corner condition 
-    if(horizon_point == right_point[0] && predict_state == PREDICT_RIGHT) right_point_next[0] = right_point_next[1];
-    
+
     // second stage multipliter
     case (state)
         IN: begin
@@ -406,14 +321,10 @@ always @(*) begin
                 2'd2: begin
                     num_2[0] = cal_1[0] + cal_1[1];
                     num_2[1] = cal_1[0] + cal_1[1];
-                    // num_1[8] = cal_1[0] + cal_1[1];
-                    // num_1[9] = cal_1[0] + cal_1[1];
                 end
                 2'd3: begin
                     num_2[0] = cal_1[0];
-                    num_2[1] = cal_1[1];
-                    // num_1[8] = cal_1[0];
-                    // num_1[9] = cal_1[1];                    
+                    num_2[1] = cal_1[1];                   
                 end
                 default: begin
                 end
@@ -520,19 +431,15 @@ end
 
 always @(posedge clk or negedge rst_n) begin
     if(!rst_n) begin
-        for(i = 0; i < 2; i = i + 1) begin
-            left_point[i] <= 0;
-            right_point[i] <= 0;
-        end
-        horizon_point <= 0;
+        left_point  <= 0;
+        right_point <= 0;
+        horizon_point  <= 0;
         vertical_point <= 0;
     end
     else begin
-        for(i = 0; i < 2; i = i + 1) begin
-            left_point[i] <= left_point_next[i];
-            right_point[i] <= right_point_next[i];
-        end
-        horizon_point <= horizon_point_next;
+        left_point  <= left_point_next;
+        right_point <= right_point_next;
+        horizon_point  <= horizon_point_next;
         vertical_point <= vertical_point_next;
     end
 end

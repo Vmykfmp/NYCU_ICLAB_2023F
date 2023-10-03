@@ -1,470 +1,346 @@
-module CC(
-    //Input Port
-    clk,
-    rst_n,
-	in_valid,
-	mode,
-    xi,
-    yi,
+//############################################################################
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//   (C) Copyright Laboratory System Integration and Silicon Implementation
+//   All Right Reserved
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   ICLAB 2023 Fall
+//   Lab01 Exercise		: Supper MOSFET Calculator
+//   Author     		: Lin-Hung Lai (lhlai@ieee.org)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+//   File Name   : SMC.v
+//   Module Name : SMC
+//   Release version : V1.0 (Release Date: 2023-09)
+//
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//############################################################################
 
-    //Output Port
-    out_valid,
-	xo,
-	yo
-    );
 
-input               clk, rst_n, in_valid;
-input       [1:0]   mode;
-input       [7:0]   xi, yi;  
+module SMC(
+  // Input signals
+    mode,
+    W_0, V_GS_0, V_DS_0,
+    W_1, V_GS_1, V_DS_1,
+    W_2, V_GS_2, V_DS_2,
+    W_3, V_GS_3, V_DS_3,
+    W_4, V_GS_4, V_DS_4,
+    W_5, V_GS_5, V_DS_5,   
+  // Output signals
+    out_n
+);
 
-output reg          out_valid;
-output reg  [7:0]   xo, yo;
-//==============================================//
-//             Parameter and Integer            //
-//==============================================//
-parameter IDLE = 2'd0;
-parameter IN   = 2'd1;
-parameter OUT  = 2'd2;
+//================================================================
+//   INPUT AND OUTPUT DECLARATION                         
+//================================================================
+input [2:0] W_0, V_GS_0, V_DS_0;
+input [2:0] W_1, V_GS_1, V_DS_1;
+input [2:0] W_2, V_GS_2, V_DS_2;
+input [2:0] W_3, V_GS_3, V_DS_3;
+input [2:0] W_4, V_GS_4, V_DS_4;
+input [2:0] W_5, V_GS_5, V_DS_5;
+input [1:0] mode;
+//output [7:0] out_n;         					// use this if using continuous assignment for out_n  // Ex: assign out_n = XXX;
+output reg [7:0] out_n; 								// use this if using procedure assignment for out_n   // Ex: always@(*) begin out_n = XXX; end
 
-parameter PREDICT_LEFT  = 2'd1;
-parameter PREDICT_RIGHT = 2'd2;
-integer i;
-//==============================================//
-//            FSM State Declaration             //
-//==============================================//
-reg [1:0] state;
-reg [1:0] state_next;
-reg [1:0] input_cnt;
-reg [1:0] input_cnt_next;
-reg [2:0] predict_state;
-reg [2:0] predict_state_next;
-reg [1:0] mode_reg;
-reg [1:0] mode_next;
-//==============================================//
-//                 reg declaration              //
-//==============================================//
-// input
-reg signed[7:0] x [0:3];
-reg signed[7:0] y [0:3];
-reg signed[7:0] x_next [0:3];
-reg signed[7:0] y_next [0:3];
-// mode 0
-wire signed[8:0] left_edge [0:1];
-wire signed[8:0] right_edge [0:1];
-reg signed[8:0] left_slope;
-reg signed[8:0] right_slope;
+//================================================================
+//    Wire & Registers 
+//================================================================
+// Declare the wire/reg you would use in your circuit
+// remember 
+// wire for port connection and cont. assignment
+// reg for proc. assignment
+wire [2:0] W [0:5];
+wire [2:0] V_GS [0:5];
+wire [2:0] V_DS [0:5];
+wire [2:0] V_DSS [0:5]; // V_DSS = V_GS - V_th
 
-reg signed[7:0] left_point;
-reg signed[7:0] right_point;
-reg signed[7:0] left_point_next;
-reg signed[7:0] right_point_next;
-reg signed[7:0] horizon_point;
-reg signed[7:0] vertical_point;
-reg signed[7:0] horizon_point_next;
-reg signed[7:0] vertical_point_next;
+reg [7:0] cal [0:5];
+reg [3:0] cal_mul_0 [0:5];
+reg [3:0] cal_mul_1 [0:5];
 
-reg signed[1:0] delta [0:1];
-// mode 1
-wire signed[6:0] a;
-wire signed[6:0] b;
-wire signed[6:0] r1;
-wire signed[6:0] r2;
-// sharing
-reg signed[8:0]    num_1 [0:7];
-reg signed[13:0]   num_2 [0:1];
-reg signed[15:0]   cal_1 [0:1];
-reg unsigned[23:0] cal_2;
-reg signed[25:0] sum;
-reg signed[25:0] sum_next;
-reg signed[15:0] out;
-reg signed[25:0] out_tmp;
-//==============================================//
-//             Current State Block              //
-//==============================================//
-always @(posedge clk or negedge rst_n) begin
-    if(~rst_n) begin
-        state <= 2'd0;
-        input_cnt <= 2'd0;
-    end
-    else begin
-        state <= state_next;
-        input_cnt <= input_cnt_next;
-    end
-end
-//==============================================//
-//              Next State Block                //
-//==============================================//
-always @(*) begin
-    case (state)
-        IDLE: begin
-            if(in_valid) state_next = IN;
-            else         state_next = IDLE;    
-        end
-        IN: begin
-            if(input_cnt == 2'd3) state_next = OUT;
-            else                  state_next = IN;
-        end
-        OUT: begin
-            if(mode_reg == 2'd0 & (horizon_point !== x[1] | vertical_point !== y[1])) state_next = OUT;
-            else                                                                      state_next = IDLE;
-        end
-        default: begin
-            state_next = IDLE;
-        end 
+reg [2:0] i, j;
+reg [2:0] l, r;
+reg [7:0] sort [0:2];
+reg [2:0] order [0:5];
+
+// reg [9:0] out_num [0:2];
+reg [9:0] out_num [0:4];
+reg [2:0] out_mul [0:2];
+reg [1:0] out_shf;
+//================================================================
+//    DESIGN
+//================================================================
+
+// --------------------------------------------------
+// write your design here
+// --------------------------------------------------
+
+/*Calculate Id or gm*/
+// assign W[0] = W_0;
+// assign W[1] = W_1;
+// assign W[2] = W_2;
+// assign W[3] = W_3;
+// assign W[4] = W_4;
+// assign W[5] = W_5;
+
+// assign V_GS[0] = V_GS_0;
+// assign V_GS[1] = V_GS_1;
+// assign V_GS[2] = V_GS_2;
+// assign V_GS[3] = V_GS_3;
+// assign V_GS[4] = V_GS_4;
+// assign V_GS[5] = V_GS_5;
+
+// assign V_DS[0] = V_DS_0;
+// assign V_DS[1] = V_DS_1;
+// assign V_DS[2] = V_DS_2;
+// assign V_DS[3] = V_DS_3;
+// assign V_DS[4] = V_DS_4;
+// assign V_DS[5] = V_DS_5;
+
+// assign V_DSS[0] = V_GS_0 - 1;
+// assign V_DSS[1] = V_GS_1 - 1;
+// assign V_DSS[2] = V_GS_2 - 1;
+// assign V_DSS[3] = V_GS_3 - 1;
+// assign V_DSS[4] = V_GS_4 - 1;
+// assign V_DSS[5] = V_GS_5 - 1;
+
+Calculator cal_0(mode, V_GS_0, V_DS_0, W_0, cal[0]);
+Calculator cal_1(mode, V_GS_1, V_DS_1, W_1, cal[1]);
+Calculator cal_2(mode, V_GS_2, V_DS_2, W_2, cal[2]);
+Calculator cal_3(mode, V_GS_3, V_DS_3, W_3, cal[3]);
+Calculator cal_4(mode, V_GS_4, V_DS_4, W_4, cal[4]);
+Calculator cal_5(mode, V_GS_5, V_DS_5, W_5, cal[5]);
+
+// always@* begin
+//   for(i = 0; i < 6; i = i + 1) begin
+//     if((V_DSS[i]) > V_DS[i]) begin // 
+//       cal_mul_0[i] = V_DS[i];
+//       if(mode[0]) cal_mul_1[i] = (V_DSS[i] << 1) - V_DS[i];
+//       else        cal_mul_1[i] = 4'd2;
+//     end
+//     else begin
+//       cal_mul_0[i] = V_DSS[i];
+//       if(mode[0]) cal_mul_1[i] = V_DSS[i];
+//       else        cal_mul_1[i] = 4'd2;
+//     end
+//     cal[i] = (W[i] * cal_mul_0[i] * cal_mul_1[i]);
+//   end
+// end
+/*Sort*/
+always @* begin
+  for(i = 0; i < 6; i = i + 1) begin
+    if(mode[1]) order[i] = 0;
+    else        order[i] = -3;
+  end
+
+  for(i = 0; i < 6; i = i + 1) begin
+    for(j = i + 1; j < 6; j = j + 1) begin
+      if(cal[i] > cal[j]) order[j] = order[j] + 1;
+      else                order[i] = order[i] + 1;
+    end    
+  end
+
+  for(i = 0; i < 3; i = i + 1) begin
+    case(i)
+      order[0]: sort[i] = cal[0];
+      order[1]: sort[i] = cal[1];
+      order[2]: sort[i] = cal[2];
+      order[3]: sort[i] = cal[3];
+      order[4]: sort[i] = cal[4];
+      default:  sort[i] = cal[5]; //order[5]: sort[i] = cal[5];
     endcase
+    out_num[i] = sort[i] / 2'd3;
+  end
 end
-
-always @(*) begin
-    case (state)
-        IN:      input_cnt_next = input_cnt + 1;
-        default: input_cnt_next = 2'd0;
-    endcase
+/*Select according to mode*/
+always @* begin
+  if(mode[0]) begin
+    out_num[3] = out_num[0];
+    out_num[4] = out_num[2];
+  end
+  else begin
+    out_num[3] = 0;
+    out_num[4] = 0;
+  end
 end
-//==============================================//
-//                  Input Block                 //
-//==============================================//
-always @(*) begin
-    for(i = 0; i < 4; i = i + 1) begin
-        x_next[i] = x[i];
-        y_next[i] = y[i];
-    end
-    mode_next = mode_reg;
-
-    case (state)
-        IDLE: begin
-            if(in_valid) begin
-                x_next[0] = xi;
-                y_next[0] = yi;
-                mode_next = mode;
-            end
-            else begin
-            end
-        end 
-        IN: begin
-            case (input_cnt)
-                2'd0: begin
-                    x_next[1] = xi;
-                    y_next[1] = yi;
-                end 
-                2'd1: begin
-                    x_next[2] = xi;
-                    y_next[2] = yi;
-                end 
-                2'd2: begin
-                    x_next[3] = xi;
-                    y_next[3] = yi;
-                end
-                default: begin
-                end
-            endcase
-        end
-        default: begin
-        end
-    endcase
+/*Output*/
+always @* begin
+  out_n = ((((out_num[0] + out_num[1] + out_num[2]) << 2'd2) -  out_num[3] +  out_num[4]) >> 2'd2) / 2'd3;
 end
+endmodule
 
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        for(i = 0; i < 4; i = i + 1) begin
-            x[i] <= 0;
-            y[i] <= 0;
-        end
-        mode_reg <= 0;
-    end
-    else begin
-        for(i = 0; i < 4; i = i + 1) begin
-            x[i] <= x_next[i];
-            y[i] <= y_next[i];
-        end
-        mode_reg <= mode_next;     
-    end
-end
-//==============================================//
-//              Calculation Block               //
-//==============================================//
-assign left_edge[0]  = x[0] - x[2];
-assign left_edge[1]  = y[0] - y[2];
-assign right_edge[0] = x[1] - x[3];
-assign right_edge[1] = y[1] - y[3];
-assign a = y[1] - y[0];
-assign b = x[0] - x[1];
-assign r1 = x[2] - x[3];
-assign r2 = y[2] - y[3];
+module Calculator(mode, V_GS, V_DS, W, out);
+	input [1:0] mode;
+	input [2:0] V_GS, V_DS, W;
+	output reg [7:0] out;
 
-always @(*) begin
-    for(i = 0; i < 8; i = i + 1) num_1[i] = 0;
-    for(i = 0; i < 2; i = i + 1) num_2[i] = 0;
-    if(x[0] < x[2]) delta[0] = 0; 
-    else            delta[0] = 1; 
-    if(x[1] < x[3]) delta[1] = 0;
-    else            delta[1] = 1;
-    horizon_point_next  = horizon_point;
-    vertical_point_next = vertical_point;
-    left_point_next  = left_point;
-    right_point_next = right_point;
-    out_tmp = 0;
-    out = 0;
+	reg [5:0] cal_result;
 
-    // first stage multiplier
-    case (state)
-        IN: begin
-          case (input_cnt)
-            2'd0: begin
-                num_1[0] = 0;
-                num_1[1] = 0;
-                num_1[2] = 0;
-                num_1[3] = 0;
-            end
-            2'd1: begin
-                num_1[0] = x[0];
-                num_1[1] = y[1];
-                num_1[2] = y[0];
-                num_1[3] = x[1];                
-            end 
-            2'd2: begin
-                if(mode_reg == 2'd1) begin
-                    num_1[0] = - b;
-                    num_1[1] = y[1];
-                    num_1[2] = a;
-                    num_1[3] = x[1];
-                    num_1[4] = a;
-                    num_1[5] = x[2];
-                    num_1[6] = - b;
-                    num_1[7] = y[2];                     
-                end
-                else begin
-                    num_1[0] = x[1];
-                    num_1[1] = y[2];
-                    num_1[2] = y[1];
-                    num_1[3] = x[2];                    
-                end
-            end
-            2'd3: begin
-                if(mode_reg == 2'd1) begin
-                    num_1[0] = a;
-                    num_1[1] = a;
-                    num_1[2] = -b;
-                    num_1[3] = b;
-                    num_1[4] = r1;
-                    num_1[5] = r1;
-                    num_1[6] = -r2;
-                    num_1[7] = r2;                    
-                end
-                else begin
-                    num_1[0] = x[2];
-                    num_1[1] = y[3];
-                    num_1[2] = y[2];
-                    num_1[3] = x[3];
-                    num_1[4] = x[3];
-                    num_1[5] = y[0];
-                    num_1[6] = y[3];
-                    num_1[7] = x[0];                    
-                end
-            end
-            default: begin
-            end
-          endcase
-        end
-        OUT: begin
-            num_1[0] = left_edge[0];
-            num_1[1] = vertical_point + 1 - y[2];
-            num_1[2] = left_edge[1];
-            num_1[3] = left_point + left_slope + delta[0] - x[2];            
-            num_1[4] = right_edge[0];
-            num_1[5] = vertical_point + 1 - y[3];  
-            num_1[6] = right_edge[1];
-            num_1[7] = right_point + right_slope + delta[1] - x[3];
-        end 
-        default: begin
-        end
-    endcase
+	always @* begin
+		// MUX for caculation of Id or gm (not divide by 3 and multiply by W)
+		// same result of below
+		/*
+		V_GS_TH = V_GS - 1;
+		
+		if (V_GS_TH > V_DS) begin
+			if (mode[0])
+				multi_1 = 2 * V_GS_TH - V_DS;
+			else
+				multi_1 = 2;
+			multi_2 = V_DS;
+    	end
+		else begin
+			if (mode[0])
+				multi_1 = V_GS_TH;
+			else
+				multi_1 = 2;
+			multi_2 = V_GS_TH;
+		end
+		
+		cal_result = multi_1 * multi_2;
+		*/
 
-    cal_1[0] = (num_1[0] * num_1[1]) - (num_1[2] * num_1[3]);
-    cal_1[1] = (num_1[4] * num_1[5]) - (num_1[6] * num_1[7]);
-    
-    // mode 0 points block
-    case (state)
-        IN: begin
-            case (input_cnt)
-                2'd3: begin
-                    left_point_next  = x[2];
-                    right_point_next = x[3];
-                    horizon_point_next  = x[2];
-                    vertical_point_next = y[2];
-                end
-                default: begin
-                end
-            endcase
-        end
-        OUT: begin
-            if(horizon_point == right_point) begin
-                if(!cal_1[0][15]) left_point_next = num_1[3] + x[2];
-                else              left_point_next = num_1[3] + x[2] - 1;
-                if(!cal_1[1][15]) right_point_next = num_1[7] + x[3];
-                else              right_point_next = num_1[7] + x[3] - 1;
-                horizon_point_next  = left_point_next;
-                vertical_point_next = vertical_point + 1;
-            end
-            else begin
-                horizon_point_next  = horizon_point + 1;
-                vertical_point_next = vertical_point;
-            end
-        end
-        default: begin
-        end
-    endcase
+		case({mode[0], V_GS, V_DS})
+			// I_D
+			{1'b1, 3'd1, 3'd1}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd1}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd1}: cal_result = 3;  // 1*(2*2-1)
+			{1'b1, 3'd4, 3'd1}: cal_result = 5;  // 1*(2*3-1)
+			{1'b1, 3'd5, 3'd1}: cal_result = 7;  // 1*(2*4-1)
+			{1'b1, 3'd6, 3'd1}: cal_result = 9;  // 1*(2*5-1)
+			{1'b1, 3'd7, 3'd1}: cal_result = 11; // 1*(2*6-1)
+			{1'b1, 3'd1, 3'd2}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd2}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd2}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd2}: cal_result = 8;  // 2*(2*3-2)
+			{1'b1, 3'd5, 3'd2}: cal_result = 12; // 2*(2*4-2)
+			{1'b1, 3'd6, 3'd2}: cal_result = 16; // 2*(2*5-2)
+			{1'b1, 3'd7, 3'd2}: cal_result = 20; // 2*(2*6-2)
+			{1'b1, 3'd1, 3'd3}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd3}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd3}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd3}: cal_result = 9;  // 3*3
+			{1'b1, 3'd5, 3'd3}: cal_result = 15; // 3*(2*4-3)
+			{1'b1, 3'd6, 3'd3}: cal_result = 21; // 3*(2*5-3)
+			{1'b1, 3'd7, 3'd3}: cal_result = 27; // 3*(2*6-3)
+			{1'b1, 3'd1, 3'd4}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd4}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd4}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd4}: cal_result = 9;  // 3*3
+			{1'b1, 3'd5, 3'd4}: cal_result = 16; // 4*4
+			{1'b1, 3'd6, 3'd4}: cal_result = 24; // 4*(2*5-4)
+			{1'b1, 3'd7, 3'd4}: cal_result = 32; // 4*(2*6-4)
+			{1'b1, 3'd1, 3'd5}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd5}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd5}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd5}: cal_result = 9;  // 3*3
+			{1'b1, 3'd5, 3'd5}: cal_result = 16; // 4*4
+			{1'b1, 3'd6, 3'd5}: cal_result = 25; // 5*5
+			{1'b1, 3'd7, 3'd5}: cal_result = 35; // 5*(2*6-5)
+			{1'b1, 3'd1, 3'd6}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd6}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd6}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd6}: cal_result = 9;  // 3*3
+			{1'b1, 3'd5, 3'd6}: cal_result = 16; // 4*4
+			{1'b1, 3'd6, 3'd6}: cal_result = 25; // 5*5
+			{1'b1, 3'd7, 3'd6}: cal_result = 36; // 6*6
+			{1'b1, 3'd1, 3'd7}: cal_result = 0;  // 0*0
+			{1'b1, 3'd2, 3'd7}: cal_result = 1;  // 1*1
+			{1'b1, 3'd3, 3'd7}: cal_result = 4;  // 2*2
+			{1'b1, 3'd4, 3'd7}: cal_result = 9;  // 3*3
+			{1'b1, 3'd5, 3'd7}: cal_result = 16; // 4*4
+			{1'b1, 3'd6, 3'd7}: cal_result = 25; // 5*5
+			{1'b1, 3'd7, 3'd7}: cal_result = 36; // 6*6
+			// g_m
+			{1'b0, 3'd1, 3'd1}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd4, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd5, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd6, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd7, 3'd1}: cal_result = 2;  // 2*1
+			{1'b0, 3'd1, 3'd2}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd2}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd2}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd2}: cal_result = 4;  // 2*2
+			{1'b0, 3'd5, 3'd2}: cal_result = 4;  // 2*2
+			{1'b0, 3'd6, 3'd2}: cal_result = 4;  // 2*2
+			{1'b0, 3'd7, 3'd2}: cal_result = 4;  // 2*2
+			{1'b0, 3'd1, 3'd3}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd3}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd3}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd3}: cal_result = 6;  // 2*3
+			{1'b0, 3'd5, 3'd3}: cal_result = 6;  // 2*3
+			{1'b0, 3'd6, 3'd3}: cal_result = 6;  // 2*3
+			{1'b0, 3'd7, 3'd3}: cal_result = 6;  // 2*3
+			{1'b0, 3'd1, 3'd4}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd4}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd4}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd4}: cal_result = 6;  // 2*3
+			{1'b0, 3'd5, 3'd4}: cal_result = 8;  // 2*4
+			{1'b0, 3'd6, 3'd4}: cal_result = 8;  // 2*4
+			{1'b0, 3'd7, 3'd4}: cal_result = 8;  // 2*4
+			{1'b0, 3'd1, 3'd5}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd5}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd5}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd5}: cal_result = 6;  // 2*3
+			{1'b0, 3'd5, 3'd5}: cal_result = 8;  // 2*4
+			{1'b0, 3'd6, 3'd5}: cal_result = 10; // 2*5
+			{1'b0, 3'd7, 3'd5}: cal_result = 10; // 2*5
+			{1'b0, 3'd1, 3'd6}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd6}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd6}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd6}: cal_result = 6;  // 2*3
+			{1'b0, 3'd5, 3'd6}: cal_result = 8;  // 2*4
+			{1'b0, 3'd6, 3'd6}: cal_result = 10; // 2*5
+			{1'b0, 3'd7, 3'd6}: cal_result = 12; // 2*6
+			{1'b0, 3'd1, 3'd7}: cal_result = 0;  // 2*0
+			{1'b0, 3'd2, 3'd7}: cal_result = 2;  // 2*1
+			{1'b0, 3'd3, 3'd7}: cal_result = 4;  // 2*2
+			{1'b0, 3'd4, 3'd7}: cal_result = 6;  // 2*3
+			{1'b0, 3'd5, 3'd7}: cal_result = 8;  // 2*4
+			{1'b0, 3'd6, 3'd7}: cal_result = 10; // 2*5
+			{1'b0, 3'd7, 3'd7}: cal_result = 12; // 2*6
+			default: cal_result = 5'bxxxxx; // don't care
+		endcase
 
-    // second stage multipliter
-    case (state)
-        IN: begin
-            case (input_cnt)
-                2'd2: begin
-                    num_2[0] = cal_1[0] + cal_1[1];
-                    num_2[1] = cal_1[0] + cal_1[1];
-                end
-                2'd3: begin
-                    num_2[0] = cal_1[0];
-                    num_2[1] = cal_1[1];                   
-                end
-                default: begin
-                end
-            endcase
-        end 
-        default: begin
-        end
-    endcase
+		// multiply MUX's result by W
+		out = W * cal_result;
+	end
+endmodule
 
-    cal_2 = num_2[0] * num_2[1];
-    // second stage multiple result register
-    case (state)
-        IDLE: begin
-           sum_next = 0; 
-        end 
-        default: begin
-            case (mode_reg)
-            2'd1: begin
-                sum_next = cal_2;
-            end
-            2'd2: begin
-                sum_next = sum + cal_1[0] + cal_1[1];
-            end 
-            default: sum_next = 0;
-        endcase   
-        end 
-    endcase
+//================================================================
+//   SUB MODULE
+//================================================================
 
-    // output selector
-    case (mode_reg)
-        2'd0: begin
-            out[15:8] = horizon_point_next;
-            out[7:0]  = vertical_point_next; 
-        end
-        2'd1: begin
-            if(sum_next == sum)      out = 2'd2;
-            else if (sum_next > sum) out = 2'd1;
-            else                     out = 2'd0;
-        end
-        2'd2: begin
-            if(sum_next[25]) out_tmp = - sum_next;
-            else             out_tmp = sum_next;
-            out = out_tmp >> 1;
-        end 
-        default: begin
-            out_tmp = 0;
-            out = 0;
-        end
-    endcase
-end
+// module BBQ (meat,vagetable,water,cost);
+// input XXX;
+// output XXX;
+// 
+// endmodule
 
-reg signed[7:0] div_num [0:3];
-reg signed[8:0] div_cal;
-always @(*) begin
-    case (state)
-        IN: begin
-            if(input_cnt == 2'd3) begin
-                div_num[0] = x[0];
-                div_num[1] = x[2];
-                div_num[2] = y[0];
-                div_num[3] = y[2];
-            end
-            else begin
-                div_num[0] = x[1];
-                div_num[1] = x[3];
-                div_num[2] = y[1];
-                div_num[3] = y[3];                
-            end
-        end 
-        default: begin
-            div_num[0] = x[1];
-            div_num[1] = x[3];
-            div_num[2] = y[1];
-            div_num[3] = y[3];
-        end
-    endcase
-    div_cal = ((div_num[0] - div_num[1]) / (div_num[2] - div_num[3]));
-end
-
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        left_slope <= 0;
-        right_slope <= 0;
-    end
-    else begin
-        case (state)
-            IN: begin
-                if(input_cnt == 2'd3) begin
-                    left_slope <= div_cal;
-                    right_slope <= right_slope;  
-                end
-                else begin
-                    left_slope <= left_slope;
-                    right_slope <= div_cal;               
-                end
-            end 
-            default: begin
-                left_slope <= left_slope;
-                right_slope <= div_cal;  
-            end
-        endcase
-    end 
-end
-
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        left_point  <= 0;
-        right_point <= 0;
-        horizon_point  <= 0;
-        vertical_point <= 0;
-    end
-    else begin
-        left_point  <= left_point_next;
-        right_point <= right_point_next;
-        horizon_point  <= horizon_point_next;
-        vertical_point <= vertical_point_next;
-    end
-end
-
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-        sum <= 0; 
-    end
-    else begin
-        sum <= sum_next;
-    end
-end
-//==============================================//
-//                Output Block                  //
-//==============================================//
-always @(posedge clk or negedge rst_n) begin
-    if(!rst_n) begin 
-        xo <= 0;
-        yo <= 0;      
-        out_valid <= 0;
-    end
-    else begin
-        xo <= out[15:8];
-        yo <= out[7:0];
-        out_valid <= (state_next == OUT);
-    end
-end
-endmodule 
+// --------------------------------------------------
+// Example for using submodule 
+// BBQ bbq0(.meat(meat_0), .vagetable(vagetable_0), .water(water_0),.cost(cost[0]));
+// --------------------------------------------------
+// Example for continuous assignment
+// assign out_n = XXX;
+// --------------------------------------------------
+// Example for procedure assignment
+// always@(*) begin 
+// 	out_n = XXX; 
+// end
+// --------------------------------------------------
+// Example for case statement
+// always @(*) begin
+// 	case(op)
+// 		2'b00: output_reg = a + b;
+// 		2'b10: output_reg = a - b;
+// 		2'b01: output_reg = a * b;
+// 		2'b11: output_reg = a / b;
+// 		default: output_reg = 0;
+// 	endcase
+// end
+// --------------------------------------------------

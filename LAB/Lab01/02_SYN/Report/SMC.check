@@ -1,0 +1,43 @@
+ 
+****************************************
+check_design summary:
+Version:     T-2022.03
+Date:        Sun Nov  5 23:54:50 2023
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                      1
+    Unconnected ports (LINT-28)                                     1
+
+Cells                                                              25
+    Cells do not drive (LINT-1)                                    25
+--------------------------------------------------------------------------------
+
+Warning: In design 'SMC', cell 'B_24' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_25' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_26' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_27' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_28' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_29' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_30' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_31' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_32' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_33' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_34' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_35' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_36' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_37' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_38' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_39' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_40' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_41' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_42' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_43' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_44' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_45' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_46' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_47' does not drive any nets. (LINT-1)
+Warning: In design 'SMC', cell 'B_48' does not drive any nets. (LINT-1)
+Warning: In design 'Calculator', port 'mode[1]' is not connected to any nets. (LINT-28)
+1

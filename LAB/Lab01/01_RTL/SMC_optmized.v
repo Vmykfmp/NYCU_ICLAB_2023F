@@ -6,7 +6,7 @@
 //
 //   ICLAB 2023 Fall
 //   Lab01 Exercise		: Supper MOSFET Calculator
-//   Author     		: Lin-Hung Lai (lhlai@ieee.org)
+//   Author     		: Tse-Chun Hsu
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
